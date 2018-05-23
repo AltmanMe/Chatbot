@@ -31,7 +31,7 @@ min_freq = 10
 wordToken = word_token.WordToken()
 
 # 放在全局的位置，为了动态算出num_encoder_symbols和num_decoder_symbols
-max_token_id = wordToken.load_file_list(['./samples/question', './samples/answer'], min_freq)
+max_token_id = wordToken.load_file_list(['/data/chatbot/ChatBotCourse-master/chatbotv1/samples/question', '/data/chatbot/ChatBotCourse-master/chatbotv1/samples/answer'], min_freq)
 num_encoder_symbols = max_token_id + 5
 num_decoder_symbols = max_token_id + 5
 
@@ -44,64 +44,6 @@ def get_id_list_from(sentence):
         if id:
             sentence_id_list.append(wordToken.word2id(str))
     return sentence_id_list
-
-
-def get_train_set():
-    global num_encoder_symbols, num_decoder_symbols
-    train_set = []
-    with open('./samples/question', 'r') as question_file:
-        with open('./samples/answer', 'r') as answer_file:
-            while True:
-                question = question_file.readline()
-                answer = answer_file.readline()
-                if question and answer:
-                    question = question.strip()
-                    answer = answer.strip()
-
-                    question_id_list = get_id_list_from(question)
-                    answer_id_list = get_id_list_from(answer)
-                    if len(question_id_list) > 0 and len(answer_id_list) > 0:
-                        answer_id_list.append(EOS_ID)
-                        train_set.append([question_id_list, answer_id_list])
-                else:
-                    break
-    return train_set
-
-
-def get_samples(train_set, batch_num):
-    """构造样本数据
-
-    :return:
-        encoder_inputs: [array([0, 0], dtype=int32), array([0, 0], dtype=int32), array([5, 5], dtype=int32),
-                        array([7, 7], dtype=int32), array([9, 9], dtype=int32)]
-        decoder_inputs: [array([1, 1], dtype=int32), array([11, 11], dtype=int32), array([13, 13], dtype=int32),
-                        array([15, 15], dtype=int32), array([2, 2], dtype=int32)]
-    """
-    # train_set = [[[5, 7, 9], [11, 13, 15, EOS_ID]], [[7, 9, 11], [13, 15, 17, EOS_ID]], [[15, 17, 19], [21, 23, 25, EOS_ID]]]
-    raw_encoder_input = []
-    raw_decoder_input = []
-    if batch_num >= len(train_set):
-        batch_train_set = train_set
-    else:
-        random_start = random.randint(0, len(train_set)-batch_num)
-        batch_train_set = train_set[random_start:random_start+batch_num]
-    for sample in batch_train_set:
-        raw_encoder_input.append([PAD_ID] * (input_seq_len - len(sample[0])) + sample[0])
-        raw_decoder_input.append([GO_ID] + sample[1] + [PAD_ID] * (output_seq_len - len(sample[1]) - 1))
-
-    encoder_inputs = []
-    decoder_inputs = []
-    target_weights = []
-
-    for length_idx in xrange(input_seq_len):
-        encoder_inputs.append(np.array([encoder_input[length_idx] for encoder_input in raw_encoder_input], dtype=np.int32))
-    for length_idx in xrange(output_seq_len):
-        decoder_inputs.append(np.array([decoder_input[length_idx] for decoder_input in raw_decoder_input], dtype=np.int32))
-        target_weights.append(np.array([
-            0.0 if length_idx == output_seq_len - 1 or decoder_input[length_idx] == PAD_ID else 1.0 for decoder_input in raw_decoder_input
-        ], dtype=np.float32))
-    return encoder_inputs, decoder_inputs, target_weights
-
 
 def seq_to_encoder(input_seq):
     """从输入空格分隔的数字id串，转成预测用的encoder、decoder、target_weight等
@@ -166,7 +108,7 @@ if __name__ == "__main__":
     """
     with tf.Session() as sess:
         encoder_inputs, decoder_inputs, target_weights, outputs, loss, update, saver, learning_rate_decay_op, learning_rate = get_model(feed_previous=True)
-        saver.restore(sess, './model/demo')
+        saver.restore(sess, '/data/chatbot/ChatBotCourse-master/chatbotv1/model/demo')
 #        sys.stdout.write("> ")
         sys.stdout.flush()
 #        input_seq = sys.stdin.readline()
@@ -188,9 +130,11 @@ if __name__ == "__main__":
 
                 # 预测输出
                 outputs_seq = sess.run(outputs, input_feed)
+#                for logit in outputs_seq:
+#                    print logit[0].shape
                 # 因为输出数据每一个是num_decoder_symbols维的，因此找到数值最大的那个就是预测的id，就是这里的argmax函数的功能
                 outputs_seq = [int(np.argmax(logit[0], axis=0)) for logit in outputs_seq]
-                # 如果是结尾符，那么后面的语句就不输出了
+#                # 如果是结尾符，那么后面的语句就不输出了
                 if EOS_ID in outputs_seq:
                     outputs_seq = outputs_seq[:outputs_seq.index(EOS_ID)]
                 outputs_seq = [wordToken.id2word(v) for v in outputs_seq]
