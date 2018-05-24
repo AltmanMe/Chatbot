@@ -134,6 +134,7 @@ if __name__ == "__main__":
 #                    print logit[0].shape
                 # 因为输出数据每一个是num_decoder_symbols维的，因此找到数值最大的那个就是预测的id，就是这里的argmax函数的功能
                 outputs_seq = [int(np.argmax(logit[0], axis=0)) for logit in outputs_seq]
+#                outputs_seq = [int(sorted(logit[0])[1]) for logit in outputs_seq]
 #                # 如果是结尾符，那么后面的语句就不输出了
                 if EOS_ID in outputs_seq:
                     outputs_seq = outputs_seq[:outputs_seq.index(EOS_ID)]
